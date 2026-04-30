@@ -1,0 +1,231 @@
+Ultra-realistic high-end SaaS insurance management dashboard UI, split-screen modern enterprise design, 4K UI mockup, clean futuristic corporate style, French interface.
+
+STYLE GLOBAL:
+- Modern fintech/insurtech aesthetic
+- Subtle glassmorphism overlays (very light, professional)
+- Soft shadows, 8–12px rounded corners
+- Crisp typography (Inter / SF Pro style)
+- Highly structured grid system
+- Smooth data visualization, premium UI polish
+- Realistic lighting, depth, layered interface
+- High attention to usability and hierarchy
+
+COLOR SYSTEM:
+- Primary: #1E3A5F (deep navy blue)
+- Secondary: #4A90A4 (teal blue)
+- Accent: #F5A623 (amber orange)
+- Success: #2ECC71
+- Warning: #F39C12
+- Danger: #E74C3C
+- Background: #F8F9FA
+- Cards: pure white with soft blur shadows
+- Text: dark slate + secondary gray
+
+TOP BAR:
+- Brand logo "ASSURMAX" glowing subtle blue
+- Global search (AI-powered search with suggestions dropdown)
+- Notification bell with live badge + animated pulse
+- AI assistant button ("Assistant Assurance IA")
+- User profile with dropdown + role indicator
+
+LEFT SIDEBAR (ICON NAVIGATION):
+- Dashboard (active glow highlight)
+- Clients
+- Polices d’assurance
+- Sinistres
+- Documents IA vérifiés
+- Rapports avancés
+- Prédictions IA
+- Paramètres sécurité
+
+MAIN DASHBOARD:
+
+1. KPI CARDS (animated micro charts inside cards):
+- Nouvelles demandes (12) with sparkline trend
+- Dossiers actifs (45)
+- Sinistres urgents (8 red alert pulse)
+- Taux de conversion (78% green upward arrow)
+- Score de performance global (AI-generated index)
+
+2. SMART AI INSIGHTS PANEL:
+- “Analyse IA du jour”
+- Risk prediction alerts
+- Fraud detection warnings (subtle red highlights)
+- Recommended actions list
+- Auto-generated summary of business health
+
+3. CLIENT MANAGEMENT TABLE (advanced):
+- Search + filters (AI semantic filter)
+- Columns:
+  Nom | Police | Type | Score risque IA | Statut | Actions
+- Status badges:
+  Actif (green), En attente (amber), Suspendu (red)
+- AI risk score heatmap per row
+- Actions:
+  Voir, Modifier, Suspendre, Analyser IA
+- Inline quick preview drawer
+
+4. CLAIMS PROCESSING CENTER:
+- Kanban-style workflow (Submitted → Review → Processing → Approved)
+- Priority flags (critical / medium / low)
+- Progress bars with percentage completion
+- Smart auto-suggestions:
+  “Documents manquants détectés”
+- Buttons:
+  Approuver, Rejeter, Demander infos, Escalader
+
+5. DOCUMENT VERIFICATION AI MODULE:
+- Drag & drop zone with glowing dashed border
+- AI OCR scanning animation preview
+- File types: PDF, JPG, PNG
+- Verification status:
+  ✔ Verified
+  ⚠ Suspicious
+  ⏳ Pending analysis
+- Fraud detection indicator
+
+6. ADVANCED ANALYTICS:
+- Interactive charts:
+  • Pie chart insurance distribution
+  • Line graph conversion trends (AI forecast overlay)
+  • Bar chart claims by category
+- Hover tooltips with deep insights
+- Forecasting dotted lines (future prediction)
+
+7. ACTIVITY STREAM (real-time):
+- Live event feed
+- User avatars + timestamps
+- AI-tagged events:
+  “Action automatisée par IA”
+- Color-coded activity severity
+
+8. AI CHAT ASSISTANT PANEL (floating widget):
+- “Comment puis-je optimiser les sinistres aujourd’hui ?”
+- Suggestion chips
+- Context-aware responses
+
+FOOTER:
+- © 2024 ASSURMAX
+- Confidentialité | Conditions | Support | API Docs
+
+OVERALL LOOK:
+Enterprise insurance control center, ultra-modern fintech dashboard, highly realistic UI mockup, clean structured layout, professional corporate trust design, high density data visualization, futuristic but realistic SaaS product.
+
+Ultra-modern customer insurance portal UI, friendly premium fintech design, mobile-first responsive web app mockup, 4K ultra-detailed interface, French language, clean and trustworthy aesthetic.
+
+STYLE GLOBAL:
+- Soft modern SaaS UI with human-centric design
+- Friendly, approachable insurance experience
+- Light glassmorphism accents (very subtle)
+- Rounded cards (12px radius)
+- Soft shadows, airy spacing
+- High readability + accessibility
+- Emotional trust-building design
+
+COLOR PALETTE:
+- Primary: #1E3A5F
+- Secondary: #4A90A4
+- Accent: #F5A623
+- Success: #2ECC71
+- Background: #F8F9FA
+- Cards: white clean surfaces
+- Text: deep navy + gray hierarchy
+
+HEADER:
+- Logo ASSURMAX
+- Navigation:
+  Accueil | Mes assurances | Sinistres | Documents | Assistance IA | Contact
+- Notification icon with subtle badge
+- Profile dropdown with avatar
+- AI assistant shortcut button
+
+HERO SECTION:
+- Personalized greeting:
+  “Bonjour, [Nom] 👋”
+- Smart insurance summary card:
+  Coverage overview + next renewal alert
+- 3 CTA buttons:
+  • Souscrire une assurance (primary blue)
+  • Déclarer un sinistre (orange accent)
+  • Contacter conseiller (outline style)
+- AI tip card:
+  “Votre couverture habitation peut être optimisée”
+
+MAIN DASHBOARD:
+
+1. INSURANCE POLICY CARDS (premium card grid):
+Each card has soft gradient border + icon + micro animation feel
+
+AUTO INSURANCE CARD:
+- Car icon
+- POL-2024-001234
+- Tous risques
+- Expire: 15/12/2024
+- Status: Active (green glowing badge)
+- Buttons: Voir détails | Télécharger attestation
+
+HOME INSURANCE CARD:
+- House icon
+- Multirisques habitation
+- Expiry: 20/03/2025
+- Smart recommendation badge: “Protection optimale”
+
+HEALTH INSURANCE CARD:
+- Medical cross icon
+- Formule confort
+- Status: À renouveler (orange warning pulse)
+- CTA: Renouveler maintenant
+
+2. CLAIMS TRACKING TIMELINE:
+- Vertical interactive timeline
+- Each claim with:
+  • Type (auto/home/health)
+  • Status progress bar
+  • AI estimated resolution time
+- Button: “Voir l’avancement en temps réel”
+
+3. DOCUMENT CENTER (GRID):
+- Attestations (PDF)
+- Factures
+- Certificats
+- Conditions générales
+- Each with hover preview + download
+
+4. PAYMENT DASHBOARD:
+- Next payment due countdown
+- Amount + currency
+- One-click payment button “Payer maintenant”
+- Payment history chart (small sparkline)
+
+5. PERSONAL ADVISOR PANEL:
+- Advisor photo (friendly professional look)
+- Name + availability status (online/offline)
+- Call / email / chat buttons
+- “Prendre rendez-vous” CTA
+
+6. AI INSURANCE ASSISTANT (chat widget):
+- Floating chat bubble
+- Example prompt:
+  “Quelle assurance est la plus adaptée à mon profil ?”
+- Smart suggestions chips
+
+7. EDUCATIONAL CONTENT SECTION:
+- Blog cards:
+  • How to reduce insurance costs
+  • What to do after a claim
+  • Understanding coverage levels
+- Thumbnail images + read time
+
+8. SPECIAL OFFERS PANEL:
+- Discount banners
+- Personalized insurance upgrade suggestions
+- Loyalty rewards system
+
+FOOTER:
+- Emergency contacts
+- Support 24/7
+- Legal links
+- Social icons
+
+OVERALL LOOK:
+Friendly premium insurance customer portal, highly polished SaaS UI, trust-driven design, clean spacing, intuitive navigation, modern fintech aesthetics, emotionally reassuring interface, mobile responsive preview included, realistic product mockup.

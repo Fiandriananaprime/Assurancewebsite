@@ -12,6 +12,8 @@ import { Checkbox } from "../components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "../components/ui/form";
+import { useToast, ToastManager } from "../components/ui/toast-manager";
+
 import {
     Mail,
     Phone,
@@ -40,6 +42,7 @@ export function ContactPage() {
     const [subject, setSubject] = useState("");
     const [rating, setRating] = useState(5);
     const [hoverRating, setHoverRating] = useState(0);
+    const toast = useToast();
 
     const faqItems = [
         {
@@ -62,10 +65,12 @@ export function ContactPage() {
 
     const handleSubmit = async (data) => {
         setIsSubmitting(true);
-        // Simuler l'envoi du formulaire
+        // Simulation d'envoi
         await new Promise(resolve => setTimeout(resolve, 2000));
         setIsSubmitting(false);
         setFormSubmitted(true);
+        
+        toast.push("Votre message a été envoyé avec succès !", { type: 'success' });
 
         // Reset form after 3 seconds
         setTimeout(() => {
@@ -76,6 +81,7 @@ export function ContactPage() {
     return (
         <div className="min-h-screen bg-white">
             <Header />
+            <ToastManager manager={toast} />
 
             {/* Hero Section */}
             <section className="relative py-16 sm:py-24 overflow-hidden">
@@ -152,7 +158,7 @@ export function ContactPage() {
                             {
                                 icon: Mail,
                                 title: "Par email",
-                                subtitle: "contact@assurancemama.fr",
+                                subtitle: "contact@mama.mg",
                                 description: "Réponse sous 24-48h",
                                 color: "text-green-600",
                                 bg: "bg-green-50"

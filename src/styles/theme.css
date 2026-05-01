@@ -179,3 +179,74 @@
     line-height: 1.5;
   }
 }
+
+/* Utility classes and animations for enhanced UI */
+@layer components {
+  .sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+  }
+
+  /* subtle elevation utility */
+  .elevated {
+    transition: box-shadow 180ms ease, transform 160ms ease;
+  }
+
+  /* shimmer for skeletons */
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .animate-shimmer {
+    background: linear-gradient(90deg, var(--color-accent) 0%, rgba(255,255,255,0.6) 50%, var(--color-accent) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s linear infinite;
+  }
+
+  /* small interactive focus style for accessible focus rings */
+  .focus-ring {
+    box-shadow: 0 0 0 4px rgba(0, 138, 46, 0.12);
+    border-radius: 0.5rem;
+  }
+  /* ripple effect (add to button wrappers) */
+  .ripple {
+    position: relative;
+    overflow: hidden;
+  }
+  .ripple::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    transform: scale(0);
+    opacity: 0.6;
+    pointer-events: none;
+    background: rgba(255,255,255,0.4);
+    transition: transform 400ms ease, opacity 600ms ease;
+  }
+  .ripple:active::after {
+    transform: scale(3.5);
+    opacity: 0;
+    transition: transform 400ms ease, opacity 600ms ease;
+  }
+
+  /* small card utility */
+  .card {
+    background: var(--color-card);
+    color: var(--color-card-foreground);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    padding: 1rem;
+    transition: transform 180ms ease, box-shadow 180ms ease;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  }
+}

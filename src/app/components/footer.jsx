@@ -21,16 +21,16 @@ export function Footer() {
               Assurance moderne, simple et transparente pour votre véhicule et votre habitation.
             </p>
             <div className="flex items-center gap-3">
-              <a href="#" className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-colors">
+              <a aria-label="Facebook" href="#" className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center transition-transform transform hover:scale-105 hover:bg-primary hover:text-white hover:border-primary elevated shadow-sm hover:shadow-md">
                 <Facebook className="w-4 h-4" />
               </a>
-              <a href="#" className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-colors">
+              <a aria-label="Twitter" href="#" className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center transition-transform transform hover:scale-105 hover:bg-primary hover:text-white hover:border-primary elevated shadow-sm hover:shadow-md">
                 <Twitter className="w-4 h-4" />
               </a>
-              <a href="#" className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-colors">
+              <a aria-label="LinkedIn" href="#" className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center transition-transform transform hover:scale-105 hover:bg-primary hover:text-white hover:border-primary elevated shadow-sm hover:shadow-md">
                 <Linkedin className="w-4 h-4" />
               </a>
-              <a href="#" className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center hover:bg-primary hover:text-white hover:border-primary transition-colors">
+              <a aria-label="Instagram" href="#" className="w-9 h-9 rounded-lg bg-white border border-border flex items-center justify-center transition-transform transform hover:scale-105 hover:bg-primary hover:text-white hover:border-primary elevated shadow-sm hover:shadow-md">
                 <Instagram className="w-4 h-4" />
               </a>
             </div>

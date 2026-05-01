@@ -72,7 +72,9 @@ export function Header() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-border">
+    <>
+      <a href="#main" className="sr-only focus:not-sr-only focus:sr-only:block focus:translate-y-0 focus:ring-4 focus:ring-primary/30">Aller au contenu</a>
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
           <Link to="/" className="flex items-center gap-2 group">
@@ -89,11 +91,12 @@ export function Header() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`text-sm transition-colors hover:text-primary ${
+                className={`text-sm relative pb-1 transition-colors hover:text-primary group ${
                   location.pathname === item.path ? "text-primary font-medium" : "text-muted-foreground"
                 }`}
               >
                 {item.label}
+                <span className={`absolute left-0 bottom-0 h-[2px] w-0 bg-primary transition-all group-hover:w-full ${location.pathname === item.path ? 'w-full' : ''}`}></span>
               </Link>
             ))}
           </nav>
@@ -255,5 +258,6 @@ export function Header() {
         )}
       </AnimatePresence>
     </header>
+    </>
   );
 }

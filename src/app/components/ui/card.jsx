@@ -1,10 +1,29 @@
 import * as React from "react";
+import { cva } from "class-variance-authority";
 import { cn } from "./utils";
+
+const cardVariants = cva(
+  "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border",
+  {
+    variants: {
+      variant: {
+        default: "shadow-sm",
+        interactive: "elevated ripple cursor-pointer transition-all hover:border-primary/20",
+        outline: "bg-transparent",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+);
+
 function Card({
   className,
+  variant,
   ...props
 }) {
-  return <div data-slot="card" className={cn("bg-card text-card-foreground flex flex-col gap-6 rounded-xl border", className)} {...props} />;
+  return <div data-slot="card" className={cn(cardVariants({ variant, className }))} {...props} />;
 }
 function CardHeader({
   className,

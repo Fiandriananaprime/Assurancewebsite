@@ -60,8 +60,13 @@ function AvatarImage({
 }
 function AvatarFallback({
   className,
+  children,
   ...props
 }) {
-  return <AvatarPrimitive.Fallback data-slot="avatar-fallback" className={cn("bg-muted flex size-full items-center justify-center rounded-full", className)} {...props} />;
+  return (
+    <AvatarPrimitive.Fallback data-slot="avatar-fallback" className={cn("flex size-full items-center justify-center rounded-full bg-gradient-to-br from-muted to-accent text-sm font-semibold", className)} {...props}>
+      {children || null}
+    </AvatarPrimitive.Fallback>
+  );
 }
 export { Avatar, AvatarImage, AvatarFallback };

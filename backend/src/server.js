@@ -79,6 +79,8 @@ app.use('/api/content', require('./routes/content.routes'));
 app.use('/api/messages', require('./routes/message.routes'));
 // Meta endpoints (tariffs, clients reference data)
 app.use('/api/meta', require('./routes/meta.routes'));
+// Agencies
+app.use('/api/agencies', require('./routes/agencies.routes'));
 
 // 404 handler
 app.use((req, res) => {

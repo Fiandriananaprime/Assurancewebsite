@@ -1,0 +1,5 @@
+ALTER TABLE conversations
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
+UPDATE conversations
+SET updated_at = COALESCE(updated_at, created_at, CURRENT_TIMESTAMP);

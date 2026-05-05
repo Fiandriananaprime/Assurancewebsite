@@ -34,6 +34,7 @@ import {
     ArrowRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import ContactMapCard from "../components/contact-map-card";
 
 export function ContactPage() {
     const [activeFaq, setActiveFaq] = useState(null);
@@ -461,6 +462,11 @@ export function ContactPage() {
                                 </div>
                             </Card>
                         </motion.div>
+
+                        {/* Full-width map: span both columns on large screens */}
+                        <div className="lg:col-span-2 mt-6">
+                            <ContactMapCard />
+                        </div>
                     </div>
                 </div>
             </section>

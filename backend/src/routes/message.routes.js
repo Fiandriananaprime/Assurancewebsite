@@ -6,6 +6,20 @@ const pool = require('../config/database');
 const { authenticate } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const { successResponse, errorResponse, getPagination } = require('../utils/helpers');
+const { generateAiReply, getClientName, getConversationHistory } = require('../utils/aiAssistant');
+
+const touchConversation = async (conversationId) => {
+    try {
+        await pool.query(
+            `UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+            [conversationId]
+        );
+    } catch (error) {
+        if (error.code !== '42703') {
+            throw error;
+        }
+    }
+};
 
 // @route   POST /api/messages/upload
 // @desc    Uploader une pièce jointe pour un message
@@ -21,6 +35,60 @@ router.post('/upload', authenticate, upload.single('file'), async (req, res) => 
     } catch (error) {
         console.error('Message upload error:', error);
         res.status(500).json(errorResponse('Erreur serveur', 500));
+    }
+});
+
+// @route   POST /api/messages/ai/draft
+// @desc    Générer un brouillon de réponse IA pour une conversation client
+// @access  Private (Employee/Admin only)
+router.post('/ai/draft', authenticate, async (req, res) => {
+    try {
+        if (req.user.role === 'client') {
+            return res.status(403).json(errorResponse('Interdit', 403));
+        }
+
+        const { conversationId, clientId, latestMessage } = req.body;
+        if (!conversationId || !clientId) {
+            return res.status(400).json(errorResponse('Conversation ou client manquant', 400));
+        }
+
+        const [clientName, conversationHistory] = await Promise.all([
+            getClientName(clientId),
+            getConversationHistory({ conversationId, clientId })
+        ]);
+
+        const reply = await generateAiReply({
+            clientName,
+            conversationHistory,
+            latestMessage: latestMessage || conversationHistory.at(-1)?.content || ''
+        });
+
+        res.json(successResponse({ reply }, 'Brouillon IA généré'));
+    } catch (error) {
+        console.error('AI draft error:', error);
+        res.status(error.statusCode || 500).json(errorResponse(error.message || 'Erreur IA', error.statusCode || 500));
+    }
+});
+
+// @route   POST /api/messages/ai/verify
+// @desc    Vérifier que la clé Gemini configurée répond
+// @access  Private (Employee/Admin only)
+router.post('/ai/verify', authenticate, async (req, res) => {
+    try {
+        if (req.user.role === 'client') {
+            return res.status(403).json(errorResponse('Interdit', 403));
+        }
+
+        const reply = await generateAiReply({
+            clientName: 'Test',
+            conversationHistory: [],
+            latestMessage: 'Réponds uniquement: OK'
+        });
+
+        res.json(successResponse({ ok: true, sample: reply }, 'Clé IA fonctionnelle'));
+    } catch (error) {
+        console.error('AI verify error:', error);
+        res.status(error.statusCode || 500).json(errorResponse(error.message || 'Erreur IA', error.statusCode || 500));
     }
 });
 
@@ -267,11 +335,7 @@ router.post('/send', authenticate, [
 
         const message = result.rows[0];
 
-        // Update conversation updated_at
-        await pool.query(
-            `UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-            [conversation_id]
-        );
+        await touchConversation(conversation_id);
 
         // Get recipient ID
         const recipientId = conversation.participant_one === req.user.id

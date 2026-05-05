@@ -1,8 +1,119 @@
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
 const pool = require('./database');
+const {
+    generateAiReply,
+    getClientName,
+    getConversationHistory,
+    insertAiMessage
+} = require('../utils/aiAssistant');
 
 let io;
+const aiDelegations = new Map();
+
+const makeAiKey = (conversationId, clientId) => String(conversationId || clientId || '');
+const makeAiClientKey = (clientId) => `client_${clientId}`;
+
+const sendDelegatedAiReply = async ({ conversationId, clientId, employeeId, latestMessage }) => {
+    const [clientName, conversationHistory] = await Promise.all([
+        getClientName(clientId),
+        getConversationHistory({ conversationId, clientId })
+    ]);
+
+    const reply = await generateAiReply({
+        clientName,
+        conversationHistory,
+        latestMessage
+    });
+
+    const message = await insertAiMessage({
+        conversationId,
+        senderId: employeeId,
+        content: reply
+    });
+
+    io.to(`user_${clientId}`).emit('receive_message', message);
+    io.to(`user_${employeeId}`).emit('message_sent', message);
+    return message;
+};
+
+const touchConversation = async (conversationId) => {
+    if (!conversationId || conversationId === 'support-general') return;
+
+    try {
+        await pool.query(
+            `UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+            [conversationId]
+        );
+    } catch (error) {
+        if (error.code !== '42703') {
+            throw error;
+        }
+    }
+};
+
+const rememberAiDelegation = async ({ conversationId, clientId, employeeId, enabled }) => {
+    const delegation = {
+        conversationId,
+        clientId,
+        employeeId
+    };
+
+    aiDelegations.set(makeAiKey(conversationId, clientId), delegation);
+    aiDelegations.set(makeAiClientKey(clientId), delegation);
+
+    try {
+        await pool.query(
+            `INSERT INTO message_ai_delegations (conversation_id, client_id, employee_id, enabled)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (conversation_id)
+             DO UPDATE SET employee_id = EXCLUDED.employee_id, client_id = EXCLUDED.client_id, enabled = EXCLUDED.enabled, updated_at = CURRENT_TIMESTAMP`,
+            [conversationId, clientId, employeeId, enabled]
+        );
+    } catch (error) {
+        if (error.code !== '42P01') {
+            throw error;
+        }
+    }
+
+    if (!enabled) {
+        aiDelegations.delete(makeAiKey(conversationId, clientId));
+        aiDelegations.delete(makeAiClientKey(clientId));
+    }
+};
+
+const findAiDelegation = async ({ conversationId, clientId }) => {
+    const memoryDelegation = aiDelegations.get(makeAiKey(conversationId, clientId)) || aiDelegations.get(makeAiClientKey(clientId));
+    if (memoryDelegation) return memoryDelegation;
+
+    try {
+        const result = await pool.query(
+            `SELECT conversation_id, client_id, employee_id
+             FROM message_ai_delegations
+             WHERE enabled = true AND (conversation_id = $1 OR client_id = $2)
+             ORDER BY updated_at DESC
+             LIMIT 1`,
+            [conversationId || null, clientId || null]
+        );
+
+        if (result.rows.length === 0) return null;
+
+        const row = result.rows[0];
+        const delegation = {
+            conversationId: row.conversation_id,
+            clientId: row.client_id,
+            employeeId: row.employee_id
+        };
+        aiDelegations.set(makeAiKey(delegation.conversationId, delegation.clientId), delegation);
+        aiDelegations.set(makeAiClientKey(delegation.clientId), delegation);
+        return delegation;
+    } catch (error) {
+        if (error.code === '42P01') {
+            return null;
+        }
+        throw error;
+    }
+};
 
 const initializeSocket = (server) => {
     const allowedOrigin = process.env.SOCKET_CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -127,6 +238,106 @@ const initializeSocket = (server) => {
             }
         });
 
+        socket.on('toggle_ai_delegation', async (data) => {
+            if (socket.user.role !== 'employee') return;
+
+            let { conversationId, clientId, enabled } = data || {};
+            if (!clientId) {
+                socket.emit('ai_delegation_error', { message: 'Client manquant pour la délégation IA.' });
+                return;
+            }
+
+            try {
+                let targetConvId = conversationId;
+
+                if (!targetConvId || targetConvId === 'support-general' || String(targetConvId) === String(clientId)) {
+                    const checkRes = await pool.query(
+                        `SELECT id FROM conversations WHERE (participant_one = $1 AND participant_two = $2)
+                         OR (participant_one = $2 AND participant_two = $1)`,
+                        [clientId, socket.user.id]
+                    );
+
+                    if (checkRes.rows.length > 0) {
+                        targetConvId = checkRes.rows[0].id;
+                    } else {
+                        const convResult = await pool.query(
+                            `INSERT INTO conversations (participant_one, participant_two, type)
+                             VALUES ($1, $2, 'client')
+                             RETURNING id`,
+                            [clientId, socket.user.id]
+                        );
+                        targetConvId = convResult.rows[0].id;
+                    }
+
+                    await pool.query(
+                        `UPDATE messages SET conversation_id = $1
+                         WHERE sender_id = $2 AND conversation_id IS NULL`,
+                        [targetConvId, clientId]
+                    );
+
+                    const clientRes = await pool.query(
+                        `SELECT first_name || ' ' || last_name as name, profile_image_url as image
+                         FROM profiles WHERE user_id = $1`,
+                        [clientId]
+                    );
+                    const clientInfo = clientRes.rows[0];
+
+                    socket.emit('conversation_claimed_success', {
+                        id: targetConvId,
+                        clientId,
+                        assignedTo: socket.user.id,
+                        name: clientInfo?.name,
+                        image: clientInfo?.image
+                    });
+
+                    io.to('role_employee').emit('remove_client_from_pool', {
+                        clientId,
+                        assignedTo: socket.user.id,
+                        assignedToName: `${socket.user.first_name} ${socket.user.last_name}`
+                    });
+
+                    io.to(`user_${clientId}`).emit('remove_client_from_pool', {
+                        clientId,
+                        assignedTo: socket.user.id,
+                        assignedToName: `${socket.user.first_name} ${socket.user.last_name}`,
+                        conversationId: targetConvId
+                    });
+                }
+
+                await rememberAiDelegation({
+                    conversationId: targetConvId,
+                    clientId,
+                    employeeId: socket.user.id,
+                    enabled: Boolean(enabled)
+                });
+
+                socket.emit('ai_delegation_updated', {
+                    conversationId: targetConvId,
+                    clientId,
+                    enabled: Boolean(enabled)
+                });
+            } catch (error) {
+                console.error('Error toggling AI delegation:', error);
+                socket.emit('ai_delegation_error', { message: error.message || 'Impossible de déléguer à l’IA.' });
+            }
+        });
+
+        socket.on('get_ai_delegation_status', async (data) => {
+            if (socket.user.role !== 'employee') return;
+
+            const { conversationId, clientId } = data || {};
+            try {
+                const delegation = await findAiDelegation({ conversationId, clientId });
+                socket.emit('ai_delegation_updated', {
+                    conversationId,
+                    clientId,
+                    enabled: Boolean(delegation)
+                });
+            } catch (error) {
+                console.error('Error getting AI delegation status:', error);
+            }
+        });
+
         // Handle sending messages
         socket.on('send_message', async (data) => {
             let { recipientId, content, conversationId, fileUrl, fileType, replyTo } = data;
@@ -159,14 +370,26 @@ const initializeSocket = (server) => {
                     const clientId = data.clientId; 
 
                     // On crée ou récupère une conversation privée
-                    const convResult = await pool.query(
-                        `INSERT INTO conversations (participant_one, participant_two, type)
-                         VALUES ($1, $2, 'client')
-                         ON CONFLICT (participant_one, participant_two) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
-                         RETURNING id`,
+                    const existingConv = await pool.query(
+                        `SELECT id FROM conversations
+                         WHERE (participant_one = $1 AND participant_two = $2)
+                            OR (participant_one = $2 AND participant_two = $1)
+                         LIMIT 1`,
                         [clientId, socket.user.id]
                     );
-                    targetConvId = convResult.rows[0].id;
+
+                    if (existingConv.rows.length > 0) {
+                        targetConvId = existingConv.rows[0].id;
+                        await touchConversation(targetConvId);
+                    } else {
+                        const convResult = await pool.query(
+                            `INSERT INTO conversations (participant_one, participant_two, type)
+                             VALUES ($1, $2, 'client')
+                             RETURNING id`,
+                            [clientId, socket.user.id]
+                        );
+                        targetConvId = convResult.rows[0].id;
+                    }
 
                     // On notifie tous les employés que cette conversation est "prise"
                     io.to('role_employee').emit('conversation_claimed', {
@@ -262,13 +485,29 @@ const initializeSocket = (server) => {
                 // Emit back to sender
                 socket.emit('message_sent', message);
 
-                // Update conversation updated_at only if it's a real private conversation
-                if (targetConvId && targetConvId !== "support-general") {
-                    await pool.query(
-                        `UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
-                        [targetConvId]
-                    );
+                if (socket.user.role === 'client' && dbConvId) {
+                    const delegation = await findAiDelegation({
+                        conversationId: dbConvId,
+                        clientId: socket.user.id
+                    });
+                    if (delegation) {
+                        sendDelegatedAiReply({
+                            conversationId: dbConvId,
+                            clientId: socket.user.id,
+                            employeeId: delegation.employeeId,
+                            latestMessage: content
+                        }).catch((aiError) => {
+                            console.error('AI delegated reply failed:', aiError);
+                            io.to(`user_${delegation.employeeId}`).emit('ai_delegation_error', {
+                                conversationId: dbConvId,
+                                clientId: socket.user.id,
+                                message: aiError.message || 'La réponse IA a échoué.'
+                            });
+                        });
+                    }
                 }
+
+                await touchConversation(targetConvId);
 
             } catch (error) {
                 console.error('Error sending message:', error);

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { MessageCircle, X, Send, User, Users, Facebook, Instagram, Search, Paperclip, Smile, UserCheck, ArrowLeft, Lock } from "lucide-react";
+import { MessageCircle, X, Send, User, Users, Facebook, Instagram, Search, Paperclip, Smile, UserCheck, ArrowLeft, Lock, Bot, Sparkles, Loader2, ExternalLink } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { io } from "socket.io-client";
 import { Button } from "./ui/button";
@@ -18,6 +18,17 @@ export function EmployeeMessenger() {
     const [conversations, setConversations] = useState([]);
     const [selectedConversationId, setSelectedConversationId] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [aiDelegated, setAiDelegated] = useState({});
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiError, setAiError] = useState("");
+    const [editingMessageId, setEditingMessageId] = useState(null);
+
+    const aiTimersRef = useRef({});
+    const aiDelegatedRef = useRef({});
+
+    useEffect(() => {
+        aiDelegatedRef.current = aiDelegated;
+    }, [aiDelegated]);
 
     const commonEmojis = [
         '😀','😂','😍','👍','🙏','🎉','😅','😎','🤔','😢'
@@ -106,6 +117,11 @@ export function EmployeeMessenger() {
         // Si l'ID est identique au ClientID et qu'il n'y a pas d'assignation
         return String(selectedConversation.id) === String(selectedConversation.clientId) && !selectedConversation.assignedTo;
     }, [selectedConversation]);
+
+    const selectedAiEnabled = useMemo(() => {
+        if (!selectedConversation) return false;
+        return Boolean(aiDelegated[String(selectedConversation.id)] || aiDelegated[String(selectedConversation.clientId)]);
+    }, [aiDelegated, selectedConversation]);
 
     useEffect(() => {
         if (isOpen && !socketRef.current) {
@@ -235,6 +251,15 @@ export function EmployeeMessenger() {
                 const isPoolMessage = !cId || cId === "support-general";
                 const convId = isPoolMessage ? String(msg.sender_id) : String(cId);
 
+                // --- GESTION DU TIMEOUT IA ---
+                const isDelegated = aiDelegatedRef.current[convId] || aiDelegatedRef.current[String(msg.sender_id)];
+                if (isDelegated && msg.sender_role === 'client') {
+                    if (aiTimersRef.current[convId]) clearTimeout(aiTimersRef.current[convId]);
+                    aiTimersRef.current[convId] = setTimeout(() => {
+                        setAiError("L'IA semble mettre du temps à répondre. Pensez à vérifier le dossier.");
+                    }, 5000);
+                }
+
                 const uiMsg = { 
                     ...msg, 
                     conversationId: convId,
@@ -265,6 +290,14 @@ export function EmployeeMessenger() {
             });
             socket.on("message_sent", (msg) => {
                 const cId = msg.conversationId || msg.conversation_id || msg.ui_conversation_id;
+                
+                // --- NETTOYAGE DU TIMEOUT ---
+                if (aiTimersRef.current[String(cId)]) {
+                    clearTimeout(aiTimersRef.current[String(cId)]);
+                    delete aiTimersRef.current[String(cId)];
+                    setAiError(""); // On efface l'alerte dès qu'une réponse (IA ou manuelle) part
+                }
+
                 const uiMsg = { ...msg, conversationId: String(cId), isMe: true };
                 setMessages(prev => [...prev, uiMsg]);
             });
@@ -279,6 +312,21 @@ export function EmployeeMessenger() {
 
             socket.on('message_removed_for_you', ({ messageId }) => {
                 setMessages(prev => prev.filter(m => m.id !== messageId));
+            });
+
+            socket.on('ai_delegation_updated', ({ conversationId, clientId, enabled }) => {
+                setAiDelegated(prev => ({
+                    ...prev,
+                    [String(conversationId)]: enabled,
+                    [String(clientId)]: enabled
+                }));
+                setAiError("");
+                setAiLoading(false);
+            });
+
+            socket.on('ai_delegation_error', ({ message }) => {
+                setAiError(message || "L'assistant IA n'a pas pu répondre.");
+                setAiLoading(false);
             });
         }
 
@@ -301,6 +349,14 @@ export function EmployeeMessenger() {
     useEffect(() => {
         setMenuOpenFor(null);
     }, [selectedConversationId]);
+
+    useEffect(() => {
+        if (!selectedConversation || !socketRef.current) return;
+        socketRef.current.emit("get_ai_delegation_status", {
+            conversationId: selectedConversation.id,
+            clientId: selectedConversation.clientId
+        });
+    }, [selectedConversation?.id, selectedConversation?.clientId]);
 
     useEffect(() => {
         if (selectedConversationId && String(selectedConversationId) !== "null" && String(selectedConversationId) !== "undefined") {
@@ -370,6 +426,49 @@ export function EmployeeMessenger() {
         if (selectedConversation && socketRef.current) {
             socketRef.current.emit("claim_conversation", { clientId: selectedConversation.clientId });
             setSelectedConversationId(selectedConversation.id);
+        }
+    };
+
+    const handleToggleAiDelegation = () => {
+        if (!selectedConversation || !socketRef.current || isLocked) return;
+        setAiLoading(true);
+        setAiError("");
+        socketRef.current.emit("toggle_ai_delegation", {
+            conversationId: selectedConversation.id,
+            clientId: selectedConversation.clientId,
+            enabled: !selectedAiEnabled
+        });
+    };
+
+    const handleDraftAiReply = async () => {
+        if (!selectedConversation || isLocked || isUnassigned) return;
+        setAiLoading(true);
+        setAiError("");
+
+        try {
+            const token = localStorage.getItem("assurance-auth-token");
+            const lastClientMessage = [...selectedMessages].reverse().find((message) => !message.isMe && !message.deleted);
+            const res = await fetch(`${API_URL}/api/messages/ai/draft`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    conversationId: selectedConversation.id,
+                    clientId: selectedConversation.clientId,
+                    latestMessage: lastClientMessage?.content || ""
+                })
+            });
+            const body = await res.json();
+            if (!res.ok) {
+                throw new Error(body.message || "Impossible de générer une réponse IA.");
+            }
+            setNewMessage(body.data?.reply || "");
+        } catch (error) {
+            setAiError(error.message || "Impossible de générer une réponse IA.");
+        } finally {
+            setAiLoading(false);
         }
     };
 
@@ -578,10 +677,39 @@ export function EmployeeMessenger() {
                                                 <p className="truncate text-sm font-bold">{selectedConversation.name}</p>
                                                 <p className="text-[10px] text-gray-500">{getTypeLabel(selectedConversation.type)}</p>
                                             </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleDraftAiReply}
+                                                disabled={aiLoading || isLocked || isUnassigned}
+                                                title="Générer un brouillon IA"
+                                                className="rounded-full p-1.5 text-gray-500 transition-colors hover:bg-white hover:text-blue-600 disabled:opacity-40"
+                                            >
+                                                {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleToggleAiDelegation}
+                                                disabled={aiLoading || isLocked}
+                                                title={selectedAiEnabled ? "Reprendre la conversation" : "Déléguer les réponses à l'IA"}
+                                                className={`flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold transition-colors disabled:opacity-40 ${selectedAiEnabled ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600 hover:bg-blue-100 hover:text-blue-700"}`}
+                                            >
+                                                <Bot className="h-3.5 w-3.5" />
+                                                {selectedAiEnabled ? "IA ON" : "IA"}
+                                            </button>
                                             {isLocked && <Lock className="h-4 w-4 text-amber-500" title="Pris par un collègue" />}
                                         </div>
 
                                         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+                                            {aiError && (
+                                                <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
+                                                    {aiError}
+                                                </div>
+                                            )}
+                                            {selectedAiEnabled && (
+                                                <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+                                                    Répondeur IA actif pour cette conversation.
+                                                </div>
+                                            )}
                                             {isUnassigned && (
                                                 <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg text-center">
                                                     <p className="text-xs text-blue-700 mb-2">Ce client attend une réponse.</p>
@@ -624,7 +752,28 @@ export function EmployeeMessenger() {
                                                         onTouchStart={() => { longPressTimerRef.current = setTimeout(() => setMenuOpenFor(msg.id), 600); }}
                                                         onTouchEnd={() => { clearTimeout(longPressTimerRef.current); }}
                                                     >
-                                                        {msg.deleted ? <div className="italic text-sm text-gray-500">Message supprimé</div> : (msg.content && <div>{msg.content}</div>)}
+                                                        {msg.deleted ? (
+                                                            <div className="italic text-sm text-gray-500">Message supprimé</div>
+                                                        ) : (
+                                                            msg.content && (
+                                                                <div className="space-y-2">
+                                                                    <div>{msg.content.replace(/NAVIGATE:[\/\w-]+\s*$/i, '').trim()}</div>
+                                                                    {msg.content.match(/NAVIGATE:([\/\w-]+)/i) && (
+                                                                        <div className="pt-1">
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                                className={`h-7 text-[10px] gap-1.5 font-bold elevated ${msg.isMe ? "bg-white/10 border-white/30 text-white hover:bg-white/20" : "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"}`}
+                                                                                onClick={() => window.open(msg.content.match(/NAVIGATE:([\/\w-]+)/i)[1], '_blank')}
+                                                                            >
+                                                                                <ExternalLink className="h-3 w-3" />
+                                                                                Page : {msg.content.match(/NAVIGATE:([\/\w-]+)/i)[1]}
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )
+                                                        )}
                                                         {msg.file_url && (
                                                             <div className="mt-1 overflow-hidden rounded-lg">
                                                                 {msg.file_type?.startsWith("image/") ? (
@@ -730,6 +879,7 @@ export function EmployeeMessenger() {
                                                     ))}
                                                 </div>
                                             )}
+
                                             {activeTab === "assigned" && (
                                                 <div>
                                                     <p className="px-4 py-2 text-[10px] font-bold text-blue-600 uppercase tracking-wider bg-blue-50/50">Mes dossiers en cours</p>
@@ -737,52 +887,52 @@ export function EmployeeMessenger() {
                                                     {filteredMy.map((conv) => (
                                                         <button key={conv.id} onClick={() => handleSelectConversation(conv)} className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-gray-50">
                                                             <div className="relative">
-                                                                <div className={`flex h-12 w-12 items-center justify-center rounded-full text-white font-medium ${getTypeColor(conv.type)}`}>{conv.avatar}</div>
-                                                                {conv.online && <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500"></div>}
+                                                                <div className={`flex h-12 w-12 items-center justify-center rounded-full ${getTypeColor(conv.type)} text-white font-bold`}>{conv.avatar || (conv.name ? conv.name.charAt(0) : 'C')}</div>
                                                             </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <p className="truncate text-sm font-medium text-gray-900">{conv.name}</p>
-                                                                    <span className="text-xs text-gray-500">{conv.time}</span>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex justify-between items-center">
+                                                                    <p className="text-sm font-semibold truncate">{conv.name}</p>
+                                                                    <span className="text-[10px] text-gray-500">{conv.time || ''}</span>
                                                                 </div>
-                                                                <div className="mt-1 flex items-center justify-between gap-2">
-                                                                    <p className="truncate text-sm text-gray-500">{conv.lastMessage}</p>
-                                                                    {conv.unread > 0 && <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">{conv.unread}</span>}
-                                                                </div>
+                                                                <p className="text-xs text-gray-500 truncate">{conv.lastMessage}</p>
                                                             </div>
                                                         </button>
                                                     ))}
                                                 </div>
                                             )}
+
                                             {activeTab === "others" && (
                                                 <div>
-                                                    <p className="px-4 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider bg-gray-50">Assignés aux collègues</p>
-                                                    {filteredOthers.length === 0 && <p className="p-8 text-center text-xs text-gray-400">Aucune autre prise en charge.</p>}
+                                                    <p className="px-4 py-2 text-[10px] font-bold text-gray-700 uppercase tracking-wider bg-gray-50/50">Autres</p>
+                                                    {filteredOthers.length === 0 && <p className="p-8 text-center text-xs text-gray-400">Aucune conversation assignée à d'autres employés.</p>}
                                                     {filteredOthers.map((conv) => (
-                                                        <div key={conv.id} className="flex w-full items-center gap-3 p-3 text-left opacity-60 grayscale-[0.3] cursor-not-allowed">
-                                                            <div className="relative">
-                                                                <div className={`flex h-12 w-12 items-center justify-center rounded-full text-white font-medium ${getTypeColor(conv.type)}`}>{conv.avatar}</div>
-                                                            </div>
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <p className="truncate text-sm font-medium text-gray-900">{conv.name}</p>
+                                                        <button key={conv.id} onClick={() => handleSelectConversation(conv)} className="flex w-full items-center gap-3 p-3 text-left hover:bg-gray-50 transition-colors">
+                                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${getTypeColor(conv.type)} text-white text-xs font-bold`}>{conv.avatar || 'C'}</div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex justify-between items-center">
+                                                                    <p className="text-sm font-semibold truncate">{conv.name}</p>
+                                                                    <span className="text-[10px] text-gray-500">{conv.assignedToName || ''}</span>
                                                                 </div>
-                                                                <p className="text-[10px] text-amber-600 font-bold uppercase mt-1">Géré par : {conv.assignedToName || "Un collègue"}</p>
+                                                                <p className="text-xs text-gray-500 truncate">{conv.lastMessage}</p>
                                                             </div>
-                                                        </div>
+                                                        </button>
                                                     ))}
                                                 </div>
                                             )}
+
                                             {activeTab === "contacts" && (
                                                 <div>
-                                                    <p className="px-4 py-2 text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50/50">Collaborateurs</p>
-                                                    {filteredInternal.length === 0 && <p className="p-8 text-center text-xs text-gray-400">Aucun contact trouvé.</p>}
+                                                    <p className="px-4 py-2 text-[10px] font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50/50">Interne</p>
+                                                    {filteredInternal.length === 0 && <p className="p-8 text-center text-xs text-gray-400">Aucune conversation interne.</p>}
                                                     {filteredInternal.map((conv) => (
-                                                        <button key={conv.id} onClick={() => handleSelectConversation(conv)} className="flex w-full items-center gap-3 p-3 text-left hover:bg-gray-50 transition-colors">
-                                                            <div className="h-10 w-10 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold">{conv.avatar || "E"}</div>
+                                                        <button key={conv.id} onClick={() => handleSelectConversation(conv)} className="flex w-full items-center gap-3 p-3 text-left hover:bg-emerald-50 transition-colors">
+                                                            <div className={`h-10 w-10 rounded-full flex items-center justify-center ${getTypeColor(conv.type)} text-white text-xs font-bold`}>{conv.avatar || 'E'}</div>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-medium text-gray-900">{conv.name}</p>
-                                                                <p className="text-xs text-gray-500">Employé</p>
+                                                                <div className="flex justify-between items-center">
+                                                                    <p className="text-sm font-semibold truncate">{conv.name}</p>
+                                                                    <span className="text-[10px] text-gray-500">{conv.time || ''}</span>
+                                                                </div>
+                                                                <p className="text-xs text-gray-500 truncate">{conv.lastMessage}</p>
                                                             </div>
                                                         </button>
                                                     ))}

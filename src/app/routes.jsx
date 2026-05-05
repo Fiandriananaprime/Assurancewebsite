@@ -6,6 +6,7 @@ import { DashboardPage } from "./pages/dashboard-page";
 import { ClaimsPage } from "./pages/claims-page";
 import { BlogPage } from "./pages/blog-page";
 import { ContactPage } from "./pages/contact-page";
+import { AgencesPage } from "./pages/agences-page";
 import { LoginPage } from "./pages/login-page";
 import { SignupPage } from "./pages/signup-page";
 import { EmployeeDashboardPage } from "./pages/employee-dashboard-page";
@@ -52,6 +53,9 @@ export const router = createBrowserRouter([{
 }, {
   path: "/contact",
   Component: ContactPage
+}, {
+  path: "/agences",
+  Component: AgencesPage
 }, {
   path: "/login",
   Component: LoginPage
